@@ -1,0 +1,51 @@
+  Installar o SDK do Google Cloud
+
+  Ir para a pasta do projeto, na qual vai ficar hospedada no Google Cloud
+
+  Na pasta do projeto precisa ter o arquivo DockerFile.
+
+FROM mcr.microsoft.com/dotnet/core/aspnet:2.2-stretch-slim AS base
+WORKDIR /app
+EXPOSE 80
+EXPOSE 443
+
+FROM mcr.microsoft.com/dotnet/core/sdk:2.2-stretch AS build
+WORKDIR /src
+COPY Efluxus.Matriculas.NLU.csproj Efluxus.Matriculas.NLU/
+RUN dotnet restore "Efluxus.Matriculas.NLU/Efluxus.Matriculas.NLU.csproj"
+COPY . .
+WORKDIR "/src/Efluxus.Matriculas.NLU"
+COPY . .
+RUN dotnet build "Efluxus.Matriculas.NLU.csproj" -c Release -o /app/build
+
+FROM build AS publish
+RUN dotnet publish "Efluxus.Matriculas.NLU.csproj" -c Release -o /app/publish
+
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "Efluxus.Matriculas.NLU.dll", "--urls=http://*:8080"]
+
+  Na pasta do projeto precisa ter o arquivo cloudbuild.yaml.
+  
+steps:
+
+- name: 'gcr.io/cloud-builders/gcloud'
+  args: ['builds', 'submit', '.','--tag','gcr.io/bdm-crk-hml/nlu']
+
+- name: 'gcr.io/cloud-builders/gcloud'
+  args: ['run', 'deploy', 'Efluxus-Matriculas-NLU','--image','gcr.io/bdm-crk-hml/nlu', '--region', 'us-east1']
+
+  No pasta do projeto precisa ter o arquivo docker-composer.yaml.
+
+version: "3"
+services:
+    web:
+        build: .
+        ports:
+            - "8080:8080"
+
+
+  Comando para criar um novo container no GoogleCloud
+gcloud builds submit --tag gcr.io/ID_DO_PROJETO/NOVO_NOME_DO_PROJETO
+
